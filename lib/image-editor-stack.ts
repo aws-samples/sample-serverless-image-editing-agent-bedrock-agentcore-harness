@@ -419,8 +419,12 @@ export class ImageEditorStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
-    // Grant the CR Lambda permission to manage Harness resources
-    // Actions determined from CloudTrail analysis of harness lifecycle operations
+    // Grant the CR Lambda permission to manage Harness resources.
+    // Resource set to '*' because bedrock-agentcore Create* actions validate against
+    // collection-level ARNs (e.g. :/harnesses) that differ from the resource-level
+    // patterns (e.g. :harness/{id}). Scoped ARN patterns cause AccessDeniedException
+    // on fresh deployments. Actions are still limited to specific operations.
+    // Security review: 2026-05-15 - confirmed ARN patterns not supported for Create*
     harnessCustomResourceLambda.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -438,12 +442,7 @@ export class ImageEditorStack extends cdk.Stack {
           'bedrock-agentcore:CreateAgentRuntimeEndpoint',
           'bedrock-agentcore:DeleteAgentRuntimeEndpoint',
         ],
-        resources: [
-          `arn:aws:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:harness/*`,
-          `arn:aws:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:runtime/*`,
-          `arn:aws:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:memory/*`,
-          `arn:aws:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:workload-identity/*`,
-        ],
+        resources: ['*'],
       }),
     );
 
