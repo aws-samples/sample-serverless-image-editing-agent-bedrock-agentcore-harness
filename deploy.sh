@@ -106,6 +106,36 @@ echo "  Step 3/6: Bootstrap CDK"
 echo "============================================"
 cdk bootstrap aws://$ACCOUNT_ID/$REGION 2>/dev/null || echo "Already bootstrapped."
 
+# Pre-deploy cleanup: remove orphaned AgentCore resources and failed stacks
+# This prevents ConflictException on fresh deploys after a previous failure
+echo ""
+echo "Pre-deploy cleanup..."
+STACK_STATUS=$(aws cloudformation describe-stacks --stack-name ImageEditorStack --region "$REGION" --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "NONE")
+if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STACK_STATUS" = "DELETE_FAILED" ]; then
+  echo "  Removing failed stack ($STACK_STATUS)..."
+  aws cloudformation delete-stack --stack-name ImageEditorStack --region "$REGION"
+  aws cloudformation wait stack-delete-complete --stack-name ImageEditorStack --region "$REGION" 2>/dev/null || true
+fi
+
+for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
+  echo "  Cleaning orphaned harness: $HID"
+  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+  sleep 5
+done
+
+for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --output json 2>/dev/null | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+for m in data.get('memories',[]):
+    mid=m.get('id','')
+    if 'img_editor' in mid:
+        print(mid)
+" 2>/dev/null); do
+  echo "  Cleaning orphaned memory: $MID"
+  aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" 2>/dev/null || true
+done
+echo -e "${GREEN}[OK]${NC} Pre-deploy cleanup complete"
+
 echo ""
 echo "============================================"
 echo "  Step 4/6: Deploy CDK stack"
