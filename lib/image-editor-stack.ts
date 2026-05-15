@@ -181,7 +181,7 @@ export class ImageEditorStack extends cdk.Stack {
     this.inpaintLambda = new lambda.Function(this, 'InpaintLambda', {
       functionName: 'image-editor-inpaint',
       description: 'Invokes Stability AI inpaint model via Bedrock to fill masked image regions',
-      runtime: lambda.Runtime.PYTHON_3_12,
+      runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'handler.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/inpaint')),
       timeout: cdk.Duration.seconds(60),
@@ -196,7 +196,7 @@ export class ImageEditorStack extends cdk.Stack {
     this.outpaintLambda = new lambda.Function(this, 'OutpaintLambda', {
       functionName: 'image-editor-outpaint',
       description: 'Invokes Stability AI outpaint model via Bedrock to extend image boundaries',
-      runtime: lambda.Runtime.PYTHON_3_12,
+      runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'handler.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/outpaint')),
       timeout: cdk.Duration.seconds(120),
@@ -211,7 +211,7 @@ export class ImageEditorStack extends cdk.Stack {
     this.searchReplaceLambda = new lambda.Function(this, 'SearchReplaceLambda', {
       functionName: 'image-editor-search-replace',
       description: 'Invokes Stability AI search-and-replace model to find and replace objects without a mask',
-      runtime: lambda.Runtime.PYTHON_3_12,
+      runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'handler.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/search-replace')),
       timeout: cdk.Duration.seconds(120),
@@ -411,7 +411,7 @@ export class ImageEditorStack extends cdk.Stack {
     const harnessCustomResourceLambda = new lambda.Function(this, 'HarnessCustomResourceLambda', {
       functionName: 'image-editor-harness-cr',
       description: 'Custom Resource handler for AgentCore Harness create/update/delete',
-      runtime: lambda.Runtime.PYTHON_3_12,
+      runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/harness-custom-resource')),
       timeout: cdk.Duration.minutes(5),
@@ -524,7 +524,7 @@ export class ImageEditorStack extends cdk.Stack {
     this.invokeHarnessLambda = new lambda.Function(this, 'InvokeHarnessLambda', {
       functionName: 'image-editor-invoke-harness',
       description: 'Proxy Lambda that invokes the AgentCore Harness on behalf of the frontend',
-      runtime: lambda.Runtime.PYTHON_3_12,
+      runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'handler.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/invoke-harness')),
       timeout: cdk.Duration.seconds(120),
