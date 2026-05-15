@@ -90,7 +90,7 @@ echo "============================================"
 echo "  Step 1/6: Install project dependencies"
 echo "============================================"
 npm install
-(cd frontend && npm install)
+(cd frontend && npm ci)
 
 echo ""
 echo "============================================"
