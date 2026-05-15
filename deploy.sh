@@ -90,7 +90,11 @@ echo "============================================"
 echo "  Step 1/6: Install project dependencies"
 echo "============================================"
 npm install
-(cd frontend && npm ci)
+(cd frontend && rm -rf node_modules && npm install)
+if [ ! -d "frontend/node_modules/tailwindcss" ]; then
+  echo -e "${RED}[ERROR]${NC} tailwindcss not installed in frontend. Build will fail."
+  exit 1
+fi
 
 echo ""
 echo "============================================"
