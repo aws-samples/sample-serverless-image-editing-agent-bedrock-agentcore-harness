@@ -91,7 +91,7 @@ export class ImageEditorStack extends cdk.Stack {
     // Cognito User Pool with self-sign-up and email verification
     this.userPool = new cognito.UserPool(this, 'ImageEditorUserPool', {
       userPoolName: 'image-editor-user-pool',
-      selfSignUpEnabled: true,
+      selfSignUpEnabled: false,
       signInAliases: { email: true },
       autoVerify: { email: true },
       standardAttributes: {

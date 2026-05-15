@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 
 function App() {
   return (
-    <Authenticator>
+    <Authenticator hideSignUp={true}>
       {({ signOut, user }) => (
         <div className="h-screen w-screen overflow-hidden bg-gray-950 flex flex-col">
           <Header
