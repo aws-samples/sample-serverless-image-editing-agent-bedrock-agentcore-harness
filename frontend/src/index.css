@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-white antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  /* Glass-morphism panel */
+  .glass {
+    @apply bg-gray-900/60 backdrop-blur-xl border border-white/[0.06];
+  }
+
+  .glass-subtle {
+    @apply bg-gray-900/40 backdrop-blur-md border border-white/[0.04];
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply relative overflow-hidden rounded-lg px-4 py-2 text-sm font-medium text-white transition-all duration-200 bg-amber-600 hover:bg-amber-700;
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  /* Custom range slider */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(245, 158, 11, 0.25);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #f59e0b;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    margin-top: -5px;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 2px 12px rgba(245, 158, 11, 0.5);
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(245, 158, 11, 0.25);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #f59e0b;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  }
+
+  /* Smooth scrollbar styling */
+  .custom-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.3);
+    border-radius: 9999px;
+  }
+  .custom-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.5);
+  }
+
+  /* Firefox scrollbar */
+  .custom-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
