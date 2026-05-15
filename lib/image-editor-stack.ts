@@ -600,13 +600,20 @@ export class ImageEditorStack extends cdk.Stack {
         { name: 'VITE_AWS_REGION', value: cdk.Aws.REGION },
       ],
       platform: 'WEB',
+      customRules: [
+        {
+          source: '/<*>',
+          target: '/index.html',
+          status: '404-200',
+        },
+      ],
     });
 
     // Main branch with auto-build enabled
     this.amplifyBranch = new amplify.CfnBranch(this, 'MainBranch', {
       appId: this.amplifyApp.attrAppId,
       branchName: 'main',
-      enableAutoBuild: true,
+      enableAutoBuild: false,
       stage: 'PRODUCTION',
       description: 'Production branch for the image editor frontend',
     });
