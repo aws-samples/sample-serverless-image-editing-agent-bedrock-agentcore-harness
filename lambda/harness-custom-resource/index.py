@@ -77,6 +77,7 @@ def _create_harness(event, context, props):
     logger.info(f"Creating memory: {memory_name}")
 
     memory_arn = None
+    memory_id = None
     try:
         memory_response = client.create_memory(
             name=memory_name,
@@ -84,6 +85,7 @@ def _create_harness(event, context, props):
             description='Conversation memory for image editor',
         )
         memory_arn = memory_response['memory']['arn']
+        memory_id = memory_response['memory'].get('id')
         logger.info(f"Created memory: {memory_arn}")
     except client.exceptions.ValidationException as e:
         # Memory already exists - look it up
@@ -93,12 +95,28 @@ def _create_harness(event, context, props):
             for mem in memories.get('memories', []):
                 if mem.get('name') == memory_name or memory_name in mem.get('id', ''):
                     memory_arn = mem['arn']
+                    memory_id = mem.get('id')
                     logger.info(f"Found existing memory: {memory_arn}")
                     break
         else:
             logger.warning(f"Could not create memory: {str(e)}")
     except Exception as e:
         logger.warning(f"Could not create memory: {str(e)}")
+
+    # Wait for memory to become ACTIVE before attaching to harness
+    if memory_id:
+        for i in range(30):
+            memories = client.list_memories()
+            for mem in memories.get('memories', []):
+                if mem.get('id') == memory_id:
+                    if mem.get('status') == 'ACTIVE':
+                        logger.info(f"Memory {memory_id} is ACTIVE")
+                        break
+            else:
+                logger.info(f"Waiting for memory to become ACTIVE (attempt {i+1})...")
+                time.sleep(5)
+                continue
+            break
 
     # Build harness params
     harness_params = {
