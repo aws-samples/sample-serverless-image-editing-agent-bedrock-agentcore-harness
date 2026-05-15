@@ -68,6 +68,8 @@ def handler(event, context):
 
 def _create_harness(event, context, props):
     """Create a new AgentCore Harness."""
+    import time
+
     tools = json.loads(props['Tools']) if isinstance(props['Tools'], str) else props['Tools']
 
     # Create Memory for conversation persistence
@@ -83,8 +85,19 @@ def _create_harness(event, context, props):
         )
         memory_arn = memory_response['memory']['arn']
         logger.info(f"Created memory: {memory_arn}")
+    except client.exceptions.ValidationException as e:
+        # Memory already exists - look it up
+        if 'already exists' in str(e):
+            logger.info(f"Memory {memory_name} already exists, looking up ARN")
+            memories = client.list_memories()
+            for mem in memories.get('memories', []):
+                if mem.get('name') == memory_name or memory_name in mem.get('id', ''):
+                    memory_arn = mem['arn']
+                    logger.info(f"Found existing memory: {memory_arn}")
+                    break
+        else:
+            logger.warning(f"Could not create memory: {str(e)}")
     except Exception as e:
-        # If memory already exists or fails, continue without it
         logger.warning(f"Could not create memory: {str(e)}")
 
     # Build harness params
@@ -107,7 +120,19 @@ def _create_harness(event, context, props):
             }
         }
 
-    response = client.create_harness(**harness_params)
+    # Retry with backoff for IAM propagation delay on fresh deployments
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            response = client.create_harness(**harness_params)
+            break
+        except client.exceptions.AccessDeniedException as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt * 5  # 5, 10, 20, 40, 80 seconds
+                logger.warning(f"AccessDenied on attempt {attempt + 1}, retrying in {wait}s (IAM propagation)")
+                time.sleep(wait)
+            else:
+                raise
 
     harness_id = response['harness']['harnessId']
     logger.info(f"Created harness: {harness_id}")
