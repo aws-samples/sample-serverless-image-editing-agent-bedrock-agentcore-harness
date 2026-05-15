@@ -172,13 +172,21 @@ ENVFILE
 
 (cd frontend && npm run build)
 
-cd frontend/dist && zip -qr /tmp/fe-deploy.zip . && cd ../..
+# Verify CSS was generated (Tailwind processing worked)
+if ! ls frontend/dist/assets/*.css 1>/dev/null 2>&1; then
+  echo -e "${RED}[ERROR]${NC} No CSS file in build output. Tailwind processing failed."
+  exit 1
+fi
+echo -e "${GREEN}[OK]${NC} Frontend built ($(du -sh frontend/dist/assets/*.css | cut -f1) CSS)"
+
+# Create zip from dist folder
+(cd frontend/dist && zip -qr /tmp/fe-deploy.zip .)
 
 DEPLOY_JSON=$(aws amplify create-deployment --app-id "$AMPLIFY_APP_ID" --branch-name main --region "$REGION" --output json)
 JOB_ID=$(echo "$DEPLOY_JSON" | jq -r '.jobId')
 UPLOAD_URL=$(echo "$DEPLOY_JSON" | jq -r '.zipUploadUrl')
 
-curl -T /tmp/fe-deploy.zip "$UPLOAD_URL" --silent --output /dev/null
+curl -T /tmp/fe-deploy.zip "$UPLOAD_URL" --fail --silent --show-error
 aws amplify start-deployment --app-id "$AMPLIFY_APP_ID" --branch-name main --job-id "$JOB_ID" --region "$REGION" > /dev/null
 
 echo "Waiting for Amplify deployment..."
