@@ -28,14 +28,38 @@ echo "Installing dependencies..."
 npm install
 
 echo ""
+echo "Deleting AgentCore resources (before stack destroy to preserve IAM role)..."
+
+for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
+  echo "  Deleting harness: $HID"
+  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+done
+
+for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --query "memories[?contains(id,'img_editor')].id" --output text 2>/dev/null); do
+  echo "  Deleting memory: $MID"
+  aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" 2>/dev/null || true
+done
+
+# Wait for harness deletion to complete before destroying the stack
+echo "  Waiting for harness deletion..."
+for i in $(seq 1 24); do
+  REMAINING=$(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')] | length(@)" --output text 2>/dev/null)
+  if [ "$REMAINING" = "0" ] || [ -z "$REMAINING" ]; then
+    echo "  Harness deleted."
+    break
+  fi
+  sleep 5
+done
+
+echo ""
 echo "Destroying ImageEditorStack..."
 cdk destroy --force || true
 
 echo ""
-echo "Cleaning up orphaned AgentCore resources..."
+echo "Cleaning up any remaining orphaned resources..."
 
 for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
-  echo "  Deleting harness: $HID"
+  echo "  Retrying harness delete: $HID"
   aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
 done
 
