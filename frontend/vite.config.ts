@@ -7,7 +7,12 @@ export default defineConfig({
   plugins: [react()],
   css: {
     postcss: {
-      plugins: [tailwindcss, autoprefixer],
+      plugins: [
+        tailwindcss({
+          content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+        }),
+        autoprefixer,
+      ],
     },
   },
   define: {
