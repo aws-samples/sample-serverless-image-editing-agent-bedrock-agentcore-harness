@@ -516,6 +516,10 @@ export class ImageEditorStack extends cdk.Stack {
       },
     });
 
+    // Ensure the execution role is not deleted before the harness custom resource
+    // is deleted. The harness needs the role to tear down its runtime environment.
+    harnessResource.node.addDependency(harnessExecutionRole);
+
     const harnessId = harnessResource.getAttString('HarnessId');
 
     // --- Invoke Harness Lambda (frontend proxy) ---
@@ -613,7 +617,7 @@ export class ImageEditorStack extends cdk.Stack {
     this.amplifyBranch = new amplify.CfnBranch(this, 'MainBranch', {
       appId: this.amplifyApp.attrAppId,
       branchName: 'main',
-      enableAutoBuild: false,
+      enableAutoBuild: true,
       stage: 'PRODUCTION',
       description: 'Production branch for the image editor frontend',
     });
