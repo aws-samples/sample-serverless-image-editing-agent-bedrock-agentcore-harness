@@ -39,7 +39,7 @@ for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --q
   aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
 done
 
-for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --query "memories[?starts_with(name,'img_editor')].id" --output text 2>/dev/null); do
+for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --query "memories[?contains(id,'img_editor')].id" --output text 2>/dev/null); do
   echo "  Deleting memory: $MID"
   aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" 2>/dev/null || true
 done
