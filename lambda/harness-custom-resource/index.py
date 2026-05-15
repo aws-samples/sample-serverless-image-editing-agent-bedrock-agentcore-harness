@@ -122,10 +122,25 @@ def _create_harness(event, context, props):
 
     # Retry with backoff for IAM propagation delay on fresh deployments
     max_retries = 5
+    response = None
     for attempt in range(max_retries):
         try:
             response = client.create_harness(**harness_params)
             break
+        except client.exceptions.ConflictException:
+            # Harness already exists (orphaned from previous deploy) - look it up
+            logger.info(f"Harness {props['HarnessName']} already exists, looking up ID")
+            harnesses = client.list_harnesses()
+            for h in harnesses.get('harnesses', []):
+                if h.get('harnessName') == props['HarnessName']:
+                    harness_id = h['harnessId']
+                    logger.info(f"Found existing harness: {harness_id}")
+                    send_cfn_response(event, context, SUCCESS, {
+                        'HarnessId': harness_id,
+                    }, harness_id)
+                    return
+            # If we can't find it, delete and retry
+            raise
         except client.exceptions.AccessDeniedException as e:
             if attempt < max_retries - 1:
                 wait = 2 ** attempt * 5  # 5, 10, 20, 40, 80 seconds
