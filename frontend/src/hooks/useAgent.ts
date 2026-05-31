@@ -91,6 +91,12 @@ export function useAgent(): UseAgentReturn {
   const [lastMetadata, setLastMetadata] = useState<RequestMetadata | null>(null);
   const lastActivityRef = useRef<number>(0);
   const lastResultImageKeyRef = useRef<string | null>(null);
+  // Synchronous lock to block concurrent/duplicate submissions. The isProcessing
+  // state used to disable the input is async and may not have propagated when a
+  // user double-presses Enter, so a ref is needed to reject the second call
+  // immediately. Concurrent calls on the same session corrupt the harness
+  // conversation history (dangling tool_use without a matching tool_result).
+  const inFlightRef = useRef(false);
   const { getCredentials } = useAuth();
 
   // Check for a persisted session on mount
@@ -147,6 +153,13 @@ export function useAgent(): UseAgentReturn {
       modelOverride?: string | null,
       personaOverride?: string
     ): Promise<AgentResponse | null> => {
+      // Reject concurrent/duplicate submissions synchronously. The isProcessing
+      // state-based input disable can lag a fast double-press, and two requests
+      // on the same session corrupt the harness conversation history.
+      if (inFlightRef.current) {
+        return null;
+      }
+
       // Check for session expiry on follow-up messages
       if (sessionId && isSessionExpired()) {
         const expiredMessage: Message = {
@@ -180,6 +193,7 @@ export function useAgent(): UseAgentReturn {
       };
       setMessages((prev) => [...prev, userMessage]);
       setIsProcessing(true);
+      inFlightRef.current = true;
 
       try {
         const lambdaClient = await getLambdaClient();
@@ -211,6 +225,23 @@ export function useAgent(): UseAgentReturn {
           const errorBody = responsePayload?.body
             ? JSON.parse(responsePayload.body)
             : { message: 'Unknown error from harness' };
+
+          // A corrupted session can never succeed again. Reset the session id
+          // (keeping the current image so the user can keep editing) and tell
+          // them to resend, instead of looping on the same broken history.
+          if (responsePayload?.statusCode === 409 && errorBody.error === 'session_corrupted') {
+            setSessionId(null);
+            lastActivityRef.current = 0;
+            const recoveryMessage: Message = {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              text: 'This conversation hit an error and could not continue, so I started a fresh session. Your image is still here. Please send your last request again.',
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, recoveryMessage]);
+            return null;
+          }
+
           throw new Error(errorBody.message || errorBody.error || 'Harness invocation failed');
         }
 
@@ -287,6 +318,7 @@ export function useAgent(): UseAgentReturn {
         return null;
       } finally {
         setIsProcessing(false);
+        inFlightRef.current = false;
       }
     },
     [sessionId, isSessionExpired, getLambdaClient]

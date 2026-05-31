@@ -414,7 +414,7 @@ export class ImageEditorStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_13,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/harness-custom-resource')),
-      timeout: cdk.Duration.minutes(5),
+      timeout: cdk.Duration.minutes(14),
       memorySize: 256,
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
@@ -432,6 +432,7 @@ export class ImageEditorStack extends cdk.Stack {
           'bedrock-agentcore:CreateHarness',
           'bedrock-agentcore:UpdateHarness',
           'bedrock-agentcore:DeleteHarness',
+          'bedrock-agentcore:GetHarness',
           'bedrock-agentcore:GetAgentRuntime',
           'bedrock-agentcore:CreateAgentRuntime',
           'bedrock-agentcore:DeleteAgentRuntime',

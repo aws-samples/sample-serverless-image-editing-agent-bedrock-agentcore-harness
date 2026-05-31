@@ -18,6 +18,52 @@ FAILED = "FAILED"
 
 client = boto3.client('bedrock-agentcore-control')
 
+# Harness statuses that indicate an unusable/orphaned resource which must be
+# torn down before a harness with the same name can be (re)created.
+UNHEALTHY_HARNESS_STATUSES = {'DELETE_FAILED', 'CREATE_FAILED', 'UPDATE_FAILED'}
+
+
+def _delete_harness_and_wait(harness_id, max_wait_seconds=240):
+    """Delete a harness and poll until it is fully gone.
+
+    Re-issues the delete if the harness lands in DELETE_FAILED. This must run
+    while the execution role still exists (CloudFormation deletes the role only
+    after this custom resource completes), otherwise the harness can never
+    finish tearing down its runtime environment.
+    """
+    import time
+
+    deadline = time.time() + max_wait_seconds
+    while time.time() < deadline:
+        try:
+            status = client.get_harness(harnessId=harness_id)['harness'].get('status')
+        except client.exceptions.ResourceNotFoundException:
+            logger.info(f"Harness {harness_id} is fully deleted")
+            return True
+        except Exception as e:
+            logger.warning(f"get_harness failed for {harness_id}: {str(e)}")
+            return False
+
+        if status == 'DELETING':
+            logger.info(f"Harness {harness_id} is DELETING, waiting...")
+            time.sleep(10)
+            continue
+
+        # READY / *_FAILED / not-yet-deleting: (re)issue the delete.
+        # DELETE_FAILED in particular only clears when delete is retried.
+        logger.info(f"Harness {harness_id} status={status}, issuing delete")
+        try:
+            client.delete_harness(harnessId=harness_id)
+        except client.exceptions.ResourceNotFoundException:
+            logger.info(f"Harness {harness_id} already gone")
+            return True
+        except Exception as e:
+            logger.warning(f"delete_harness failed for {harness_id}: {str(e)}")
+        time.sleep(10)
+
+    logger.warning(f"Timed out waiting for harness {harness_id} to delete")
+    return False
+
 
 def send_cfn_response(event, context, status, data, physical_resource_id=None):
     """Send response to CloudFormation via the pre-signed S3 URL."""
@@ -148,17 +194,40 @@ def _create_harness(event, context, props):
         except client.exceptions.ConflictException:
             # Harness already exists (orphaned from previous deploy) - look it up
             logger.info(f"Harness {props['HarnessName']} already exists, looking up ID")
+            existing = None
             harnesses = client.list_harnesses()
             for h in harnesses.get('harnesses', []):
                 if h.get('harnessName') == props['HarnessName']:
-                    harness_id = h['harnessId']
-                    logger.info(f"Found existing harness: {harness_id}")
-                    send_cfn_response(event, context, SUCCESS, {
-                        'HarnessId': harness_id,
-                    }, harness_id)
-                    return
-            # If we can't find it, delete and retry
-            raise
+                    existing = h
+                    break
+
+            if existing is None:
+                # Conflict but not found in list - transient; retry after a pause
+                logger.warning("ConflictException but harness not found in list; retrying")
+                time.sleep(10)
+                continue
+
+            existing_id = existing['harnessId']
+            existing_status = existing.get('status')
+
+            if existing_status in UNHEALTHY_HARNESS_STATUSES:
+                # Orphaned/broken harness from a prior failed teardown. Reusing it
+                # would hand the frontend a dead harness, so delete it and retry.
+                logger.warning(
+                    f"Existing harness {existing_id} is {existing_status}; "
+                    f"deleting it before recreating"
+                )
+                _delete_harness_and_wait(existing_id)
+                time.sleep(5)
+                continue
+
+            # Healthy pre-existing harness (e.g. created by a prior successful
+            # run that lost its CloudFormation mapping) - adopt it.
+            logger.info(f"Adopting existing healthy harness: {existing_id} ({existing_status})")
+            send_cfn_response(event, context, SUCCESS, {
+                'HarnessId': existing_id,
+            }, existing_id)
+            return
         except client.exceptions.AccessDeniedException as e:
             if attempt < max_retries - 1:
                 wait = 2 ** attempt * 5  # 5, 10, 20, 40, 80 seconds
@@ -215,9 +284,12 @@ def _delete_harness(event, context):
         send_cfn_response(event, context, SUCCESS, {}, 'NONE')
         return
 
+    # Delete and wait for completion while the execution role still exists.
+    # CloudFormation tears down the execution role only after this custom
+    # resource returns, so the harness must be fully gone before we respond -
+    # otherwise it loses the role mid-teardown and lands in DELETE_FAILED.
     try:
-        client.delete_harness(harnessId=harness_id)
-        logger.info(f"Deleted harness: {harness_id}")
+        _delete_harness_and_wait(harness_id)
     except Exception as e:
         logger.warning(f"Error deleting harness {harness_id}: {str(e)}")
 

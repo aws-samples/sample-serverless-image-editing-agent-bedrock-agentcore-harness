@@ -291,7 +291,31 @@ def handler(event, context):
         }
 
     except Exception as e:
-        logger.error(f"Error invoking harness: {str(e)}", exc_info=True)
+        err_str = str(e)
+        logger.error(f"Error invoking harness: {err_str}", exc_info=True)
+
+        # Detect a corrupted conversation history. This happens when two requests
+        # run concurrently on the same session and interleave their writes to
+        # AgentCore memory, leaving a tool_use block without a matching
+        # tool_result. The session can never succeed again, so signal the
+        # frontend to start a fresh session rather than retrying this one.
+        is_corrupted = (
+            'Expected toolResult blocks' in err_str
+            or 'tool_use' in err_str and 'tool_result' in err_str
+        )
+        if is_corrupted:
+            return {
+                'statusCode': 409,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+                },
+                'body': json.dumps({
+                    'error': 'session_corrupted',
+                    'message': 'This conversation can no longer be continued. Starting a new session.',
+                }),
+            }
+
         return {
             'statusCode': 500,
             'headers': {

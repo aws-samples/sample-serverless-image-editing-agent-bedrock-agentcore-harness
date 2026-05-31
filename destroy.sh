@@ -30,25 +30,39 @@ npm install
 echo ""
 echo "Deleting AgentCore resources (before stack destroy to preserve IAM role)..."
 
+# Delete each harness and wait for it to fully disappear. The execution role
+# still exists at this point (cdk destroy runs later), which the harness needs
+# to tear down its runtime. A harness in DELETE_FAILED is retried until gone.
+delete_harness_and_wait() {
+  HID="$1"
+  for attempt in $(seq 1 24); do
+    STATUS=$(aws bedrock-agentcore-control get-harness --harness-id "$HID" --region "$REGION" --query "harness.status" --output text 2>/dev/null || echo "GONE")
+    if [ "$STATUS" = "GONE" ]; then
+      echo "    Harness $HID deleted."
+      return 0
+    fi
+    if [ "$STATUS" = "DELETING" ]; then
+      sleep 10
+      continue
+    fi
+    # READY or *_FAILED (incl. DELETE_FAILED): (re)issue delete
+    echo "    Harness $HID status=$STATUS, issuing delete..."
+    aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+    sleep 10
+  done
+  echo -e "    ${YELLOW}Warning:${NC} harness $HID did not delete in time."
+  return 1
+}
+
 for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
   echo "  Deleting harness: $HID"
   aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+  delete_harness_and_wait "$HID"
 done
 
 for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --query "memories[?contains(id,'img_editor')].id" --output text 2>/dev/null); do
   echo "  Deleting memory: $MID"
   aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" 2>/dev/null || true
-done
-
-# Wait for harness deletion to complete before destroying the stack
-echo "  Waiting for harness deletion..."
-for i in $(seq 1 24); do
-  REMAINING=$(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')] | length(@)" --output text 2>/dev/null)
-  if [ "$REMAINING" = "0" ] || [ -z "$REMAINING" ]; then
-    echo "  Harness deleted."
-    break
-  fi
-  sleep 5
 done
 
 echo ""

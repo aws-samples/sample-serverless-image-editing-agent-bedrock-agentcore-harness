@@ -123,8 +123,16 @@ fi
 
 for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
   echo "  Cleaning orphaned harness: $HID"
-  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
-  sleep 5
+  # Retry delete until gone: a harness in DELETE_FAILED only clears when the
+  # delete is re-issued, and reusing it would hand the app a dead harness.
+  for attempt in $(seq 1 18); do
+    STATUS=$(aws bedrock-agentcore-control get-harness --harness-id "$HID" --region "$REGION" --query "harness.status" --output text 2>/dev/null || echo "GONE")
+    if [ "$STATUS" = "GONE" ]; then break; fi
+    if [ "$STATUS" != "DELETING" ]; then
+      aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+    fi
+    sleep 8
+  done
 done
 
 for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --output json 2>/dev/null | python3 -c "
