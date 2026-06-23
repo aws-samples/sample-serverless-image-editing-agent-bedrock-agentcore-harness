@@ -38,6 +38,8 @@ echo "Deleting AgentCore resources (before stack destroy to preserve IAM role)..
 # Delete each harness and wait for it to fully disappear. The execution role
 # still exists at this point (cdk destroy runs later), which the harness needs
 # to tear down its runtime. A harness in DELETE_FAILED is retried until gone.
+# stdout of delete-* calls is sent to /dev/null: the API echoes the full
+# harness/memory JSON, which floods the terminal and looks like a hang.
 delete_harness_and_wait() {
   HID="$1"
   for attempt in $(seq 1 24); do
@@ -52,7 +54,7 @@ delete_harness_and_wait() {
     fi
     # READY or *_FAILED (incl. DELETE_FAILED): (re)issue delete
     echo "    Harness $HID status=$STATUS, issuing delete..."
-    aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+    aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" >/dev/null 2>&1 || true
     sleep 10
   done
   echo -e "    ${YELLOW}Warning:${NC} harness $HID did not delete in time."
@@ -61,13 +63,13 @@ delete_harness_and_wait() {
 
 for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
   echo "  Deleting harness: $HID"
-  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" >/dev/null 2>&1 || true
   delete_harness_and_wait "$HID"
 done
 
 for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --query "memories[?contains(id,'img_editor')].id" --output text 2>/dev/null); do
   echo "  Deleting memory: $MID"
-  aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" 2>/dev/null || true
+  aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" >/dev/null 2>&1 || true
 done
 
 echo ""
@@ -79,12 +81,12 @@ echo "Cleaning up any remaining orphaned resources..."
 
 for HID in $(aws bedrock-agentcore-control list-harnesses --region "$REGION" --query "harnesses[?starts_with(harnessName,'img_editor')].harnessId" --output text 2>/dev/null); do
   echo "  Retrying harness delete: $HID"
-  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" 2>/dev/null || true
+  aws bedrock-agentcore-control delete-harness --harness-id "$HID" --region "$REGION" >/dev/null 2>&1 || true
 done
 
 for MID in $(aws bedrock-agentcore-control list-memories --region "$REGION" --query "memories[?contains(id,'img_editor')].id" --output text 2>/dev/null); do
   echo "  Deleting memory: $MID"
-  aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" 2>/dev/null || true
+  aws bedrock-agentcore-control delete-memory --memory-id "$MID" --region "$REGION" >/dev/null 2>&1 || true
 done
 
 echo ""
@@ -94,9 +96,9 @@ if [ "$DELETE_BUCKET" = "yes" ]; then
   echo "Cleaning up S3 buckets..."
   for BUCKET in $(aws s3api list-buckets --query "Buckets[?starts_with(Name,'imageeditorstack-')].Name" --output text 2>/dev/null); do
     echo "  Emptying bucket: $BUCKET"
-    aws s3 rm "s3://$BUCKET" --recursive --region "$REGION" 2>/dev/null || true
+    aws s3 rm "s3://$BUCKET" --recursive --region "$REGION" >/dev/null 2>&1 || true
     echo "  Deleting bucket: $BUCKET"
-    aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION" 2>/dev/null || true
+    aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION" >/dev/null 2>&1 || true
   done
 else
   echo "S3 bucket retained. To delete later:"
