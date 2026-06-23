@@ -72,7 +72,7 @@ done
 
 echo ""
 echo "Destroying ImageEditorStack..."
-cdk destroy --force || true
+npx cdk destroy --force || true
 
 echo ""
 echo "Cleaning up any remaining orphaned resources..."

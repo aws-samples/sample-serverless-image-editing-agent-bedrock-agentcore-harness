@@ -30,27 +30,10 @@ else
   echo -e "${GREEN}[OK]${NC} Node.js $(node -v)"
 fi
 
-if ! command -v cdk &> /dev/null; then
-  echo -e "${YELLOW}Installing AWS CDK CLI...${NC}"
-  npm install -g aws-cdk
-fi
-
-# Check CDK CLI version is compatible with aws-cdk-lib in package.json
-REQUIRED_CDK=$(node -e "console.log(require('./package.json').dependencies['aws-cdk-lib'].replace('^','').replace('~',''))" 2>/dev/null)
-INSTALLED_CDK=$(cdk --version 2>/dev/null | cut -d' ' -f1)
-if [ -n "$REQUIRED_CDK" ] && [ -n "$INSTALLED_CDK" ]; then
-  REQ_MAJOR=$(echo "$REQUIRED_CDK" | cut -d. -f1-2)
-  INST_MAJOR=$(echo "$INSTALLED_CDK" | cut -d. -f1-2)
-  if [ "$(printf '%s\n' "$REQUIRED_CDK" "$INSTALLED_CDK" | sort -V | head -1)" != "$INSTALLED_CDK" ] || [ "$INSTALLED_CDK" = "$REQUIRED_CDK" ]; then
-    echo -e "${GREEN}[OK]${NC} CDK $INSTALLED_CDK"
-  else
-    echo -e "${YELLOW}CDK CLI $INSTALLED_CDK may be incompatible with aws-cdk-lib $REQUIRED_CDK. Upgrading...${NC}"
-    npm install -g aws-cdk
-    echo -e "${GREEN}[OK]${NC} CDK $(cdk --version 2>/dev/null | cut -d' ' -f1)"
-  fi
-else
-  echo -e "${GREEN}[OK]${NC} CDK $(cdk --version 2>/dev/null | cut -d' ' -f1)"
-fi
+# The AWS CDK CLI is pinned as a devDependency (package.json) and invoked via
+# `npx cdk`, so the version always matches aws-cdk-lib. It is installed in
+# "Step 1: Install project dependencies" below. No global CDK install needed.
+echo -e "${GREEN}[OK]${NC} CDK CLI will be used from the local pinned devDependency (npx cdk)"
 
 if ! command -v jq &> /dev/null; then
   echo -e "${YELLOW}Installing jq...${NC}"
@@ -113,7 +96,7 @@ echo ""
 echo "============================================"
 echo "  Step 3/6: Bootstrap CDK"
 echo "============================================"
-cdk bootstrap aws://$ACCOUNT_ID/$REGION 2>/dev/null || echo "Already bootstrapped."
+npx cdk bootstrap aws://$ACCOUNT_ID/$REGION 2>/dev/null || echo "Already bootstrapped."
 
 # Pre-deploy cleanup: remove orphaned AgentCore resources and failed stacks
 # This prevents ConflictException on fresh deploys after a previous failure
@@ -157,7 +140,7 @@ echo ""
 echo "============================================"
 echo "  Step 4/6: Deploy CDK stack"
 echo "============================================"
-cdk deploy --require-approval never --outputs-file cdk-outputs.json
+npx cdk deploy --require-approval never --outputs-file cdk-outputs.json
 
 echo ""
 echo "============================================"
