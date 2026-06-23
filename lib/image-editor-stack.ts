@@ -440,6 +440,7 @@ export class ImageEditorStack extends cdk.Stack {
           'bedrock-agentcore:DeleteWorkloadIdentity',
           'bedrock-agentcore:CreateMemory',
           'bedrock-agentcore:DeleteMemory',
+          'bedrock-agentcore:GetMemory',
           'bedrock-agentcore:CreateAgentRuntimeEndpoint',
           'bedrock-agentcore:DeleteAgentRuntimeEndpoint',
         ],
