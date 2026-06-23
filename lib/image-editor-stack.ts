@@ -9,7 +9,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 // Amazon Bedrock AgentCore (AgentCore) for agentic workflows
-import * as agentcore from '@aws-cdk/aws-bedrock-agentcore-alpha';
+import * as agentcore from 'aws-cdk-lib/aws-bedrockagentcore';
 import { Construct } from 'constructs';
 
 export interface ImageEditorStackProps extends cdk.StackProps {
@@ -408,6 +408,13 @@ export class ImageEditorStack extends cdk.Stack {
     this.imageStoreKey.grant(harnessExecutionRole, 'kms:Decrypt', 'kms:GenerateDataKey');
 
     // Custom Resource Lambda for Harness lifecycle management
+    // Explicit log group (replaces the deprecated `logRetention` prop) with a
+    // one-week retention and DESTROY removal so it is cleaned up with the stack.
+    const harnessCrLogGroup = new logs.LogGroup(this, 'HarnessCustomResourceLambdaLogGroup', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     const harnessCustomResourceLambda = new lambda.Function(this, 'HarnessCustomResourceLambda', {
       functionName: 'image-editor-harness-cr',
       description: 'Custom Resource handler for AgentCore Harness create/update/delete',
@@ -416,7 +423,7 @@ export class ImageEditorStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/harness-custom-resource')),
       timeout: cdk.Duration.minutes(14),
       memorySize: 256,
-      logRetention: logs.RetentionDays.ONE_WEEK,
+      logGroup: harnessCrLogGroup,
     });
 
     // Grant the CR Lambda permission to manage Harness resources.
