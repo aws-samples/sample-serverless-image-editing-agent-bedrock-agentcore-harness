@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Disable the AWS CLI v2 pager so commands with uncaptured JSON output
+# (delete-stack, delete-harness, admin-create-user, etc.) don't pause the
+# script at a `less` ':' prompt.
+export AWS_PAGER=""
+
 echo "============================================"
 echo "  Serverless Agentic Image Editor"
 echo "  Full Automated Deployment"

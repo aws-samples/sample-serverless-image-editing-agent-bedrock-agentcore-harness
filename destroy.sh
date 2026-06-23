@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Disable the AWS CLI v2 pager. Without this, commands whose JSON output is not
+# captured (e.g. delete-harness) pipe through `less` and pause at a ':' prompt,
+# silently blocking the script until the user presses q.
+export AWS_PAGER=""
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
