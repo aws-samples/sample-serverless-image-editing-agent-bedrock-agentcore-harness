@@ -26,8 +26,7 @@ The architecture of the image editing application has four layers.
 3. An Amazon Bedrock AgentCore harness agent with AgentCore Memory for conversation persistence.
 4. Three tool Lambda functions calling Stability AI foundation models through Amazon Bedrock for image generation.
 
-<!-- TODO: Add architecture diagram here -->
-<!-- ![Architecture diagram](assets/architecture.png) -->
+<img width="3480" height="2250" alt="architecture-diagram-inline" src="https://github.com/user-attachments/assets/82fa80e3-5065-4261-9e79-3fb7653cdefa" />
 
 ## Creating the agent using configuration
 
@@ -191,7 +190,7 @@ After signing in, the editor presents a canvas on the left and a chat interface 
 4. **View the result.** The edited image appears in the chat thread with a tiled watermark applied by the microVM shell command. The "Behind the Scenes" panel shows which model was used, which tool was called, token counts, latency, and whether the watermark was applied.
 5. **Optionally switch models or personas.** Use the menus at the top of the chat to change the reasoning model or switch to an industry-specific persona. The change takes effect on the next message without losing conversation history.
 
-<!-- TODO: Add demo video / screenshots here -->
+https://github.com/user-attachments/assets/4e3a7d40-6b54-487b-80cc-beecdd9cf7ce
 
 ## What the harness specifically reduced for this project
 
