@@ -11,7 +11,7 @@ The application accepts prompts like "change the car color to blue" or "extend t
 This application demonstrates the following AgentCore harness capabilities:
 
 - **Configuration-driven agent creation.** The agent is defined entirely through API parameters. No Python orchestration code, no framework, no container.
-- **Per-invocation model switching.** The frontend routes basic chat to Claude Haiku and edits to Claude Sonnet 4.6. The agent preserves conversation context across model switches.
+- **Per-invocation model switching.** The frontend routes basic chat to Claude Haiku 4.5 and edits to Claude Sonnet 4.6. The agent preserves conversation context across model switches.
 - **Per-invocation persona override.** Users select industry personas (Real Estate, Retail, Automotive) that inject domain-specific system prompts without redeploying.
 - **AgentCore memory** stores conversation history in the AgentCore service for 30 days. The agent retains full context across turns within a session, so it can reference prior edits without the frontend re-sending history. This sample persists the session ID in `localStorage`, so conversations survive browser refresh. Clearing browser data starts a new session on the frontend, but the conversation history remains available in AgentCore through the `ListEvents` API.
 - **AgentCore Gateway with MCP.** Three AWS Lambda-backed tools are exposed through Model Context Protocol (MCP) with semantic routing. The agent selects the right tool based on the prompt.
@@ -152,7 +152,7 @@ To deploy this solution, you need the following.
 
 - An AWS account with permissions to create AWS Identity and Access Management (IAM) roles, Lambda functions, Amazon Simple Storage Service (Amazon S3) buckets, Amazon Cognito pools, and AgentCore resources.
 - Node.js 20.x or later.
-- Python 3.13 (for Lambda function runtimes).
+- Python 3.13 or later (for Lambda function runtimes).
 - AWS Command Line Interface (AWS CLI) 2.x configured with credentials.
 - Access to Anthropic Claude models (Sonnet, Haiku) in Amazon Bedrock.
 - Access to Stability AI models in Amazon Bedrock.
